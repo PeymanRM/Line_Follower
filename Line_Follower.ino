@@ -8,21 +8,22 @@
 const int sensorCount = 5;
 bool sensorValues[sensorCount];
 const int sensorPins[] = {14, 15, 16, 17, 18};
-bool allActive = true;
-bool allDeactive = true; 
+bool allActive = true; // Flag for detecting when all sensors detect the line
+bool allDeactive = true; // Flag for detecting when no sensor detects the line
 
 int position, error, previousError;
-int setpoint = 2000; 
-const float Kp = 0;
-const float Ki = 0;
-const float Kd = 0;
+int setpoint = 2000; // Represents the middle of our proccess variable: position
+const float Kp = 0; // Proportional Gain
+const float Ki = 0; // Integral Gain
+const float Kd = 0; // Derivative Gain
 
 int P, I, D, PIDvalue; 
 int leftMotorSpeed, rightMotorSpeed;
-const int normalSpeed = 230;
+const int normalSpeed = 230; //Standard speed of the line follower
 
 
 void setup() {
+  // Setting pin modes
   pinMode(EN1, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
@@ -33,27 +34,29 @@ void setup() {
     pinMode(sensorPins[i], INPUT);
   }
 
+  // Enabling Motors
   digitalWrite(EN1, HIGH);
   digitalWrite(EN2, HIGH);
 
+  // Beginning serial com
   Serial.begin(9600);
 }
 
 void loop() {
-  readSensors();
-  position = getPosition();
+  readSensors(); // Stores digital sensor values in sensorValues[]
+  position = getPosition(); // Gives approximated position of the line using weighted average in range of 0 to (sensorCount-1)*1000
   error = setpoint - position;
   
-  if(allActive) {
+  if(allActive) { // End of track
     leftMotorSpeed = 0;
     rightMotorSpeed = 0;
-  } else if(allDeactive && previousError >= 0) {
+  } else if(allDeactive && previousError >= 0) { // Out of Line
     leftMotorSpeed = (-1) * normalSpeed;
     rightMotorSpeed = normalSpeed;
   } else if(allDeactive && previousError < 0) {
     leftMotorSpeed = normalSpeed;
     rightMotorSpeed = (-1) * normalSpeed;
-  } else {
+  } else { // Line somewhere in the middle
     PIDController();
   }
 
@@ -63,9 +66,9 @@ void loop() {
 }
 
 void PIDController() {
-  P = error; 
-  I = I + error; 
-  D = error - previousError;
+  P = error; // e(t) = error
+  I = I + error; // Running sum (Integral) of error
+  D = error - previousError; // Differene (Derivitive) of error
   PIDvalue = Kp*P + Ki*I + Kd*D; 
   previousError = error;
   leftMotorSpeed = constrain(normalSpeed - PIDvalue, -255, 255);
@@ -92,30 +95,30 @@ int getPosition() {
       allActive = false;
     }
   }
-  return sum/activeCount;
+  return sum/activeCount; // Weighted average of sensors
 }
 
 void drive() {
-  if(rightMotorSpeed == 0) {
+  if(rightMotorSpeed == 0) { // Stop
     digitalWrite(EN1, LOW);
     analogWrite(IN1, 0);
     analogWrite(IN2, 0);
-  } else if(rightMotorSpeed > 0) {
+  } else if(rightMotorSpeed > 0) { // Forward
     analogWrite(IN1, rightMotorSpeed);
     analogWrite(IN2, 0);
-  } else {
+  } else { // Backward
     analogWrite(IN1, 0);
     analogWrite(IN2, rightMotorSpeed);
   }
  
-  if(leftMotorSpeed == 0) {
+  if(leftMotorSpeed == 0) { // Stop
     digitalWrite(EN2, LOW);
     analogWrite(IN3, 0);
     analogWrite(IN4, 0);
-  } else if(leftMotorSpeed > 0) {
+  } else if(leftMotorSpeed > 0) { // Forward
     analogWrite(IN3, 0);
     analogWrite(IN4, leftMotorSpeed);
-  } else {
+  } else { // Backward
     analogWrite(IN3, leftMotorSpeed);
     analogWrite(IN4, 0);
   }
