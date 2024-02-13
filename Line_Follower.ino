@@ -6,20 +6,22 @@
 #define IN4 10
 
 const int sensorCount = 5;
-bool sensorValues[sensorCount];
+bool sensorValues[sensorCount] ;
 const int sensorPins[] = {14, 15, 16, 17, 18};
 bool allActive = true; // Flag for detecting when all sensors detect the line
 bool allDeactive = true; // Flag for detecting when no sensor detects the line
 
 int position, error, previousError;
 int setpoint = 2000; // Represents the middle of our proccess variable: position
-const float Kp = 0; // Proportional Gain
-const float Ki = 0; // Integral Gain
-const float Kd = 0; // Derivative Gain
+float Kp = 0; // Proportional Gain
+float Ki = 0; // Integral Gain
+float Kd = 0; // Derivative Gain
 
 int P, I, D, PIDvalue; 
 int leftMotorSpeed, rightMotorSpeed;
 const int normalSpeed = 230; //Standard speed of the line follower
+const int numChars = 7;
+char recievedChars[numChars];
 
 
 void setup() {
@@ -43,6 +45,7 @@ void setup() {
 }
 
 void loop() {
+  getGains();
   readSensors(); // Stores digital sensor values in sensorValues[]
   position = getPosition(); // Gives approximated position of the line using weighted average in range of 0 to (sensorCount-1)*1000
   error = setpoint - position;
@@ -78,7 +81,7 @@ void PIDController() {
 void readSensors() {
   noInterrupts();
   for(int i = 0; i < sensorCount; i++) {
-    sensorValues[i] = digitalRead(sensorPins[i]);
+    sensorValues[i] = !digitalRead(sensorPins[i]);
   }
   interrupts();
 }
@@ -108,7 +111,7 @@ void drive() {
     analogWrite(IN2, 0);
   } else { // Backward
     analogWrite(IN1, 0);
-    analogWrite(IN2, rightMotorSpeed);
+    analogWrite(IN2, (-1) * rightMotorSpeed);
   }
  
   if(leftMotorSpeed == 0) { // Stop
@@ -119,7 +122,7 @@ void drive() {
     analogWrite(IN3, 0);
     analogWrite(IN4, leftMotorSpeed);
   } else { // Backward
-    analogWrite(IN3, leftMotorSpeed);
+    analogWrite(IN3, (-1) * leftMotorSpeed);
     analogWrite(IN4, 0);
   }
 }
@@ -136,6 +139,29 @@ void log() {
   Serial.print(leftMotorSpeed);
   Serial.print(" ");
   Serial.println(rightMotorSpeed);
-  Serial.println(Kp*P);
   Serial.println("--------------------------------------------------");
+}
+
+void getGains() {
+  if(Serial.available()) {
+    Serial.read();
+    Serial.flush();
+    while(!Serial.available()) {}  
+    Serial.readBytes(recievedChars, numChars);
+    Kp = atof(recievedChars);
+    Serial.print("Kp is set to: ");
+    Serial.println(Kp, 4);
+
+    while(!Serial.available()) {}  
+    Serial.readBytes(recievedChars, numChars);
+    Ki = atof(recievedChars);
+    Serial.print("Ki is set to: ");
+    Serial.println(Ki, 4);
+
+    while(!Serial.available()) {}  
+    Serial.readBytes(recievedChars, numChars);
+    Kd = atof(recievedChars);
+    Serial.print("Kd is set to: ");
+    Serial.println(Kd, 4);
+  }
 }
