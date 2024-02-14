@@ -5,11 +5,13 @@
 #define IN3 9
 #define IN4 10
 
+bool isOff = false;
+
 const int sensorCount = 5;
-bool sensorValues[sensorCount] ;
-const int sensorPins[] = {14, 15, 16, 17, 18};
-bool allActive = true; // Flag for detecting when all sensors detect the line
-bool allDeactive = true; // Flag for detecting when no sensor detects the line
+bool sensorValues[sensorCount] = {0,0,0,0,1};
+const int sensorPins[] = {14, 15, 16, 17, 18}; // Pins A0-A4
+bool allActive; // Flag for detecting when all sensors detect the line
+bool allDeactive; // Flag for detecting when no sensor detects the line
 
 int position, error, previousError;
 int setpoint = 2000; // Represents the middle of our proccess variable: position
@@ -20,8 +22,8 @@ float Kd = 0; // Derivative Gain
 int P, I, D, PIDvalue; 
 int leftMotorSpeed, rightMotorSpeed;
 const int normalSpeed = 230; //Standard speed of the line follower
-const int numChars = 7;
-char recievedChars[numChars];
+const int numChars = 7; // Buffer length
+char recievedChars[numChars]; // Buffer
 
 
 void setup() {
@@ -46,13 +48,14 @@ void setup() {
 
 void loop() {
   getGains();
-  readSensors(); // Stores digital sensor values in sensorValues[]
+  // readSensors(); // Stores digital sensor values in sensorValues[]
   position = getPosition(); // Gives approximated position of the line using weighted average in range of 0 to (sensorCount-1)*1000
   error = setpoint - position;
   
   if(allActive) { // End of track
     leftMotorSpeed = 0;
     rightMotorSpeed = 0;
+    isOff = true;
   } else if(allDeactive && previousError >= 0) { // Out of Line
     leftMotorSpeed = (-1) * normalSpeed;
     rightMotorSpeed = normalSpeed;
@@ -87,6 +90,8 @@ void readSensors() {
 }
 
 int getPosition() {
+  allActive = true;
+  allDeactive = true;
   int sum = 0;
   int activeCount = 0; 
   for(int i = 0; i < sensorCount; i++) {
@@ -102,11 +107,7 @@ int getPosition() {
 }
 
 void drive() {
-  if(rightMotorSpeed == 0) { // Stop
-    digitalWrite(EN1, LOW);
-    analogWrite(IN1, 0);
-    analogWrite(IN2, 0);
-  } else if(rightMotorSpeed > 0) { // Forward
+  if(rightMotorSpeed > 0) { // Forward
     analogWrite(IN1, rightMotorSpeed);
     analogWrite(IN2, 0);
   } else { // Backward
@@ -114,16 +115,17 @@ void drive() {
     analogWrite(IN2, (-1) * rightMotorSpeed);
   }
  
-  if(leftMotorSpeed == 0) { // Stop
-    digitalWrite(EN2, LOW);
-    analogWrite(IN3, 0);
-    analogWrite(IN4, 0);
-  } else if(leftMotorSpeed > 0) { // Forward
+  if(leftMotorSpeed > 0) { // Forward
     analogWrite(IN3, 0);
     analogWrite(IN4, leftMotorSpeed);
   } else { // Backward
     analogWrite(IN3, (-1) * leftMotorSpeed);
     analogWrite(IN4, 0);
+  }
+
+  if(isOff) {
+    digitalWrite(EN1, LOW);
+    digitalWrite(EN2, LOW);
   }
 }
 
